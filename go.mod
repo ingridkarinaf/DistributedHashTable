@@ -1,3 +1,3 @@
-module github.com/ingridkarinaf/DistributedHashTable.git
+module github.com/ingridkarinaf/DistributedHashTable
 
 go 1.19
