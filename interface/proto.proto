@@ -1,4 +1,4 @@
 syntax = "proto3";
 
 package hashTable;
-option go_package = "https://github.com/ingridkarinaf/DistributedHashTable.git;hashTable";
+option go_package = "https://github.com/ingridkarinaf/DistributedHashTable;hashTable";
