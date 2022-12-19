@@ -40,7 +40,7 @@ func main() {
 	address := ":" + port
 	list, err := net.Listen("tcp", address)
 	if err != nil {
-		log.Printf("FEServer failed to listen on port %s: %v", address, err) //If it fails to listen on the port, run launchServer method again with the next value/port in ports array
+		fmt.Printf("FEServer failed to listen on port %s: %v", address, err) //If it fails to listen on the port, run launchServer method again with the next value/port in ports array
 		return
 	}
 
@@ -57,43 +57,60 @@ func main() {
 
 	
 	go func() {
-		log.Printf("FEServer _attempting_ listening on port %s:", server.port)
+		fmt.Printf("FEServer _attempting_ listening on port %s:", server.port)
 		if err := grpcServer.Serve(list); err != nil {
-			log.Fatalf("failed to serve %v", err)
+			fmt.Fatalf("failed to serve %v", err)
 		}
 
-		log.Printf("FEServer %s successfully listening for requests.", server.port)
+		fmt.Printf("FEServer %s successfully listening for requests.", server.port)
 	}()
 
+	//Dialing to ports 5000, 5001 and 5002
 	for i := 0; i < 3; i++ {
 		port := 5000 + i 
 		address := ":" + port
 		conn := server.DialToServer(serverToDial)
 		defer conn.Close()
-
 	}
 
 	for {}
+}
+
+func (FE *FEServer) DialToServer() {
+	//Add connection to map
 
 }
 
-func (FE *FEServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*hashTable.PutResponse, error){
-	fmt.Println("Inside of put method of FE server: ", FE)
+//Waits only for two success responses, chucks out the last one (for performance, only a bonus if the last one is successful)
+func (FE *FEServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*hashtable.PutResponse, error){
 
-	//Loop through list of servers 
-	for RM in FE.replicaManagers {
-		fmt.Println("RM: ", RM)
+	successResp = 0
+	for portNumber, RMconnection := range FE.replicaManagers  {
+		if successResp >= 2 {
+			break
+		}
+
+		result, err := server.Put(context.Background(), hashUpt) 
+		if err != nil {
+			fmt.Printf("Map update failed: %s", err)
+		} else {
+			successResp++ 
+		}
+	}
+
+	outcome := nil
+	if successResp >= 2 {
+		outcome = true
+	} else {
+		outcome = false
 	}
 
 	hashtableUpdateOutcome := &hashtable.PutResponse{
-		Success: false
+		Success: outcome,
 	}
-
-	var err error 
-	return hashtableUpdateOutcome, err
+	return hashtableUpdateOutcome, nil
 }
 
-// sets the logger to use a log.txt file instead of the console
 func setLogFEServer() *os.File {
 	f, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {

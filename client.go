@@ -76,6 +76,7 @@ func main() {
 	}
 }
 
+//If function returns an error, redial to other front-end and try again
 func Put(hashUpt *hashtable.PutRequest, connection *grpc.ClientConn, server hashtable.HashTableClient) (*hashtable.PutResponse) {
 	result, err := server.Put(context.Background(), hashUpt) //What does the context.background do?
 	if err != nil {
