@@ -9,7 +9,18 @@ import (
 	"os"
 	"bufio"
 	"fmt"
+	"context"
 )
+
+/* 
+Responsible for:
+	1. Making connection to FE, has to redial if they lose connection
+	2. 
+
+Limitations:
+	1. Can only dial to pre-determined front-ends or by incrementing 
+	(then there is no guarantee that there is an FE with that port number)
+*/
 
 func main() {
 
@@ -17,14 +28,14 @@ func main() {
 	f := setLogClient()
 	defer f.Close()
 
-	//Creating 
-	port := ":" + os.Args[1] 
-	connection, err := grpc.Dial(port, grpc.WithInsecure())
+	//clientPort := ":" + os.Args[2]
+	FEport := ":" + os.Args[2] //dial 4000 or 4001 (available ports on the FEServers)
+	connection, err := grpc.Dial(FEport, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Unable to connect: %v", err)
 	}
 
-	server := hashtable.NewHashTableClient(connection) //creates a new client
+	server := hashtable.NewHashTableClient(connection) //creates a connection with an FE server
 	defer connection.Close()
 
 	go func() {
@@ -45,19 +56,37 @@ func main() {
 			}
 
 			//Send request to update hashtable
-			// hashtableUpdate := &hashtable.putRequest{
-			// 	key:   int32(key),
-			// 	value: int32(value),
-			// }
+			hashtableUpdate := &hashtable.PutRequest{
+				Key:   int32(key),
+				Value: int32(value),
+			}
 
-			fmt.Println("hashtableupdate: ", hashtable)
-			fmt.Println("server: ", server, key, value)
+			fmt.Println(hashtableUpdate)
+
+			result := Put(hashtableUpdate, connection, server)
+			fmt.Println("result: ", result)
+			// log.Printf("Client %s: Bid response: ", port, ack.GetAcknowledgement())
+			// println("Bid response: ", ack.GetAcknowledgement())
+			
 		}
 	}()
 
 	for {
 
 	}
+}
+
+func Put(hashUpt *hashtable.PutRequest, connection *grpc.ClientConn, server hashtable.HashTableClient) (*hashtable.PutResponse) {
+	result, err := server.Put(context.Background(), hashUpt) //What does the context.background do?
+	if err != nil {
+		fmt.Printf("Client %s: update failed:%s", connection.Target(), err)
+	}
+	return result
+}
+
+//In the case of losing connection
+func Redial() {
+
 }
 
 
