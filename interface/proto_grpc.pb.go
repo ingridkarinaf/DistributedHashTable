@@ -36,7 +36,7 @@ func NewHashTableClient(cc grpc.ClientConnInterface) HashTableClient {
 
 func (c *hashTableClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error) {
 	out := new(PutResponse)
-	err := c.cc.Invoke(ctx, "/hashTable.HashTable/put", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/hashTable.HashTable/Put", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (c *hashTableClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.
 
 func (c *hashTableClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, "/hashTable.HashTable/get", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/hashTable.HashTable/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func _HashTable_Put_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hashTable.HashTable/put",
+		FullMethod: "/hashTable.HashTable/Put",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(HashTableServer).Put(ctx, req.(*PutRequest))
@@ -112,7 +112,7 @@ func _HashTable_Get_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/hashTable.HashTable/get",
+		FullMethod: "/hashTable.HashTable/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(HashTableServer).Get(ctx, req.(*GetRequest))
@@ -128,11 +128,11 @@ var HashTable_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*HashTableServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "put",
+			MethodName: "Put",
 			Handler:    _HashTable_Put_Handler,
 		},
 		{
-			MethodName: "get",
+			MethodName: "Get",
 			Handler:    _HashTable_Get_Handler,
 		},
 	},

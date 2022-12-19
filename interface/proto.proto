@@ -4,23 +4,23 @@ package hashTable;
 option go_package = "https://github.com/ingridkarinaf/DistributedHashTable;hashTable";
 
 service HashTable {
-    rpc put (putRequest) returns (putResponse) {}
-    rpc get (getRequest) returns (getResponse) {}
+    rpc Put (PutRequest) returns (PutResponse) {}
+    rpc Get (GetRequest) returns (GetResponse) {}
 }
 
-message putRequest {
+message PutRequest {
     int32 key = 1;
     int32 value = 2;
 }
 
-message putResponse {
+message PutResponse {
     bool success = 1;
 }
 
-message getRequest {
+message GetRequest {
     int32 key = 1;
 }
 
-message getResponse {
+message GetResponse {
     int32 value = 1;
 }
