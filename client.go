@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"fmt"
 	"context"
+	"reflect"
 )
 
 /* 
@@ -21,6 +22,8 @@ Limitations:
 	1. Can only dial to pre-determined front-ends or by incrementing 
 	(then there is no guarantee that there is an FE with that port number)
 */
+
+var i32 interface{} = int32(5)
 
 func main() {
 
@@ -40,33 +43,52 @@ func main() {
 
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
-		println("Enter key and value, separated by a space")
-
+		
 		for {
+			println("Enter 'update' to update hash table, 'get' to get value of a given key. (without quotation marks)")
 			scanner.Scan()
-			text := scanner.Text()
-			inputArray := strings.Fields(text)
-			key, err := strconv.Atoi(inputArray[0])
-			if err != nil {
-				log.Fatalf("Couldn't convert key to int: ", err)
-			}
-			value, err := strconv.Atoi(inputArray[1])
-			if err != nil {
-				log.Fatalf("Couldn't convert value to int: ", err)
-			}
+			textChoice := scanner.Text()
+			if (textChoice == "update") {
+				println("Enter key and value, separated by a space (integers only!)")
+				text := scanner.Text()
+				inputArray := strings.Fields(text)
+				
+				key, err := strconv.Atoi(inputArray[0])
+				if err != nil {
+					log.Fatalf("Couldn't convert key to int: ", err)
+				}
+				value, err := strconv.Atoi(inputArray[1])
+				if err != nil {
+					log.Fatalf("Couldn't convert value to int: ", err)
+				}
+	
+				//Send request to update hashtable
+				hashtableUpdate := &hashtable.PutRequest{
+					Key:   int32(key),
+					Value: int32(value),
+				}
+	
+				fmt.Println(hashtableUpdate)
+	
+				result := Put(hashtableUpdate, connection, server)
+				fmt.Println("Put result: ", result)
+			} else if (textChoice == "get") {
+				println("Enter the key of the value you would like to retireve (integers only!): ")
+				scanner.Scan()
+				text := scanner.Text()
+				val, err := strconv.Atoi(text)
+				if err != nil {
+					fmt.Println("Could not convert key to integer: ", err)
+				}
+				getReq := &hashtable.GetRequest{
+					Key:   int32(val),
+				}
 
-			//Send request to update hashtable
-			hashtableUpdate := &hashtable.PutRequest{
-				Key:   int32(key),
-				Value: int32(value),
+				result := Get(getReq, connection, server)
+				fmt.Println("Get result: ", result)
+			} else {
+				fmt.Println("Sorry, didn't catch that. ")
 			}
-
-			fmt.Println(hashtableUpdate)
-
-			result := Put(hashtableUpdate, connection, server)
-			fmt.Println("result: ", result)
-			// log.Printf("Client %s: Bid response: ", port, ack.GetAcknowledgement())
-			// println("Bid response: ", ack.GetAcknowledgement())
 			
 		}
 	}()
@@ -80,12 +102,27 @@ func main() {
 func Put(hashUpt *hashtable.PutRequest, connection *grpc.ClientConn, server hashtable.HashTableClient) (*hashtable.PutResponse) {
 	result, err := server.Put(context.Background(), hashUpt) //What does the context.background do?
 	if err != nil {
-		fmt.Printf("Client %s: update failed:%s", connection.Target(), err)
+		fmt.Printf("Client %s hashUpdate failed:%s", connection.Target(), err)
 	}
 	return result
 }
 
-//In the case of losing connection
+func Get(getRsqt *hashtable.GetRequest, connection *grpc.ClientConn, server hashtable.HashTableClient) (int32) {
+	result, err := server.Get(context.Background(), getRsqt)
+	if err != nil {
+		fmt.Printf("Client %s get request failed: %s", connection.Target(), err)
+		Redial()
+	}
+
+	if reflect.ValueOf(result.Value).Kind() !=  reflect.ValueOf(int32(5)).Kind() {
+		fmt.Println(reflect.ValueOf(int32(5)).Kind())
+		return 0
+	}
+	fmt.Println("result inside get of client: ", result, reflect.TypeOf(result))
+	return result.Value
+}
+
+//In the case of losing connection - alternates between predefined front-
 func Redial() {
 
 }

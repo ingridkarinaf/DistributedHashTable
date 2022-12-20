@@ -4,6 +4,12 @@ import (
 	"fmt"
 	hashtable "github.com/ingridkarinaf/DistributedHashTable/interface"
 	grpc "google.golang.org/grpc"
+	"strconv"
+	"os"
+	"context"
+	"net"
+	"log"
+
 )
 
 /*
@@ -28,21 +34,23 @@ func main() {
 	defer cancel()
 
 	rmServer := &RMServer{
-		id:              portInput,
+		id:              int32(portInput),
 		hashTableCopy:   make(map[int32]int32),
 		ctx:             ctx,
 	}
 
 	list, err := net.Listen("tcp", fmt.Sprintf(":%v", portInput))
 	if err != nil {
-		fmt.Fatalf("Failed to listen on port: %v", err)
+		fmt.Printf("Failed to listen on port: %v", err)
+		//log.Fatalf("Failed to listen on port: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
 	hashtable.RegisterHashTableServer(grpcServer, rmServer)
 	go func() {
 		if err := grpcServer.Serve(list); err != nil {
-			fmt.Fatalf("failed to server %v", err)
+			fmt.Printf("failed to server %v", err)
+			//log.Fatalf("failed to server %v", err)
 		}
 	}()
 
@@ -50,7 +58,7 @@ func main() {
 }
 
 func (RM *RMServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*hashtable.PutResponse, error){
-	RM.hashTableCopy[hashUpt.key] = hashUpt.value
+	RM.hashTableCopy[hashUpt.Key] = hashUpt.Value
 	hashtableUpdateOutcome := &hashtable.PutResponse{
 		Success: true,
 	}
@@ -58,12 +66,19 @@ func (RM *RMServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*ha
 }
 
 
-func (RM *RMServer) Get(ctx context.Context, getRqst *hashtable.GetRequest) (*GetResponse, error) {
-	hashValue := RM.hashTableCopy[getRqst]
+func (RM *RMServer) Get(ctx context.Context, getRqst *hashtable.GetRequest) (*hashtable.GetResponse, error) {
+	hashValue := RM.hashTableCopy[getRqst.Key]
 	getResp := &hashtable.GetResponse{
-		Value: hashValue,
+		Value:  hashValue,
 	}
-
 	return getResp, nil
 }
 
+func setLogRMServer() *os.File {
+	f, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	log.SetOutput(f)
+	return f
+}
