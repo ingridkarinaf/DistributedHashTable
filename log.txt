@@ -1,2 +1,22 @@
-2022/12/19 12:21:45 FEServer _attempting_ listening on port 4000:
-2022/12/19 12:47:40 Couldn't convert key to int: %!(EXTRA *strconv.NumError=strconv.Atoi: parsing "h": invalid syntax)
+2022/12/20 12:53:17 FEServer 4001: Server on port 4001: Listening at [::]:4001
+2022/12/20 12:53:17 FE server 4001: Trying to dial RM server with port: :5000
+2022/12/20 12:53:17 FEServer _attempting_ to listen on port 4001 
+2022/12/20 12:53:17 FE server 4001: Trying to dial RM server with port: :5001
+2022/12/20 12:53:17 FE server 4001: Trying to dial RM server with port: :5002
+2022/12/20 12:53:18 FEServer 4000: Server on port 4000: Listening at [::]:4000
+2022/12/20 12:53:18 FE server 4000: Trying to dial RM server with port: :5000
+2022/12/20 12:53:18 FEServer _attempting_ to listen on port 4000 
+2022/12/20 12:53:18 FE server 4000: Trying to dial RM server with port: :5001
+2022/12/20 12:53:18 FE server 4000: Trying to dial RM server with port: :5002
+2022/12/20 12:53:27 Hashtable successfully updated to 5 for key 4.
+2022/12/20 12:53:33 Sorry, didn't catch that. 
+2022/12/20 12:53:36 Client: Value of key 5: 4 
+2022/12/20 12:53:44 Hashtable successfully updated to 5 for key 3.
+2022/12/20 12:53:48 Client: Value of key 5: 3 
+2022/12/20 12:53:58 Hash table update to RM server :5000 failed in FE server 4001: rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing dial tcp :5000: connect: connection refused"
+2022/12/20 12:53:58 Client: Value of key 3: 0 
+2022/12/20 12:54:10 FE Server: Hash table to RM server update failed for FE server :5000: 4000%!(EXTRA *status.Error=rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing dial tcp :5000: connect: connection refused")
+2022/12/20 12:54:10 Hashtable successfully updated to 4 for key 2.
+2022/12/20 12:54:13 Client :4001 get request failed: rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing dial tcp :4001: connect: connection refused"
+2022/12/20 12:54:13 Hash table update to RM server :5000 failed in FE server 4000: rpc error: code = Unavailable desc = connection error: desc = "transport: Error while dialing dial tcp :5000: connect: connection refused"
+2022/12/20 12:54:13 Client: Value of key 4: 2 

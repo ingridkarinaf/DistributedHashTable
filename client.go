@@ -8,8 +8,9 @@ import (
 	"log"
 	"os"
 	"bufio"
-	"fmt"
 	"context"
+	"reflect"
+	"fmt"
 )
 
 /* 
@@ -20,7 +21,11 @@ Responsible for:
 Limitations:
 	1. Can only dial to pre-determined front-ends or by incrementing 
 	(then there is no guarantee that there is an FE with that port number)
+	2. Assumes a failed request is due to a crashed server, redials immediately
 */
+
+var server hashtable.HashTableClient
+var connection *grpc.ClientConn 
 
 func main() {
 
@@ -28,65 +33,119 @@ func main() {
 	f := setLogClient()
 	defer f.Close()
 
-	//clientPort := ":" + os.Args[2]
-	FEport := ":" + os.Args[2] //dial 4000 or 4001 (available ports on the FEServers)
-	connection, err := grpc.Dial(FEport, grpc.WithInsecure())
+	FEport := ":" + os.Args[1] //dial 4000 or 4001 (available ports on the FEServers)
+	conn, err := grpc.Dial(FEport, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Unable to connect: %v", err)
 	}
+	connection = conn
 
-	server := hashtable.NewHashTableClient(connection) //creates a connection with an FE server
+	server = hashtable.NewHashTableClient(connection) //creates a connection with an FE server
 	defer connection.Close()
 
 	go func() {
 		scanner := bufio.NewScanner(os.Stdin)
-		println("Enter key and value, separated by a space")
-
+		
 		for {
+			println("Enter 'update' to update hash table, 'get' to get value of a given key. (without quotation marks)")
 			scanner.Scan()
-			text := scanner.Text()
-			inputArray := strings.Fields(text)
-			key, err := strconv.Atoi(inputArray[0])
-			if err != nil {
-				log.Fatalf("Couldn't convert key to int: ", err)
-			}
-			value, err := strconv.Atoi(inputArray[1])
-			if err != nil {
-				log.Fatalf("Couldn't convert value to int: ", err)
-			}
+			textChoice := scanner.Text()
+			if (textChoice == "update") {
+				println("Enter key and value, separated by a space (integers only!)")
+				scanner.Scan()
+				text := scanner.Text()
+				inputArray := strings.Fields(text)
+				
+				key, err := strconv.Atoi(inputArray[0])
+				if err != nil {
+					log.Printf("Couldn't convert key to int: ", err)
+					continue
+				}
+				value, err := strconv.Atoi(inputArray[1])
+				if err != nil {
+					log.Printf("Couldn't convert key to int: ", err)
+					continue
+				}
+	
+				hashtableUpdate := &hashtable.PutRequest{
+					Key:   int32(key),
+					Value: int32(value),
+				}
 
-			//Send request to update hashtable
-			hashtableUpdate := &hashtable.PutRequest{
-				Key:   int32(key),
-				Value: int32(value),
+				result := Put(hashtableUpdate)
+				if result.Success == true {
+					log.Printf("Hashtable successfully updated to %v for key %v.\n", key, value)
+				} else {
+					log.Println("Update unsuccessful, please try again.")
+				}
+				
+			} else if (textChoice == "get") {
+				println("Enter the key of the value you would like to retireve (integers only!): ")
+				scanner.Scan()
+				text := scanner.Text()
+				key, err := strconv.Atoi(text)
+				if err != nil {
+					log.Println("Client: Could not convert key to integer: ", err)
+					continue
+				}
+				getReq := &hashtable.GetRequest{
+					Key:   int32(key),
+				}
+
+				result := Get(getReq) 
+				log.Printf("Client: Value of key %s: %v \n",text, int(result))
+				fmt.Printf("Value of key %s: %v \n",text, int(result))
+			} else {
+				log.Println("Sorry, didn't catch that. ")
+				fmt.Println("Sorry, didn't catch that. ")
 			}
-
-			fmt.Println(hashtableUpdate)
-
-			result := Put(hashtableUpdate, connection, server)
-			fmt.Println("result: ", result)
-			// log.Printf("Client %s: Bid response: ", port, ack.GetAcknowledgement())
-			// println("Bid response: ", ack.GetAcknowledgement())
-			
 		}
 	}()
 
-	for {
-
-	}
+	for {}
 }
 
-func Put(hashUpt *hashtable.PutRequest, connection *grpc.ClientConn, server hashtable.HashTableClient) (*hashtable.PutResponse) {
+//If function returns an error, redial to other front-end and try again
+func Put(hashUpt *hashtable.PutRequest) (*hashtable.PutResponse) {
 	result, err := server.Put(context.Background(), hashUpt) //What does the context.background do?
 	if err != nil {
-		fmt.Printf("Client %s: update failed:%s", connection.Target(), err)
+		log.Printf("Client %s hashUpdate failed:%s. \n Redialing and retrying. \n", connection.Target(), err)
+		Redial()
+		return Put(hashUpt)
 	}
 	return result
 }
 
-//In the case of losing connection
-func Redial() {
+func Get(getRsqt *hashtable.GetRequest) (int32) {
+	result, err := server.Get(context.Background(), getRsqt)
+	if err != nil {
+		log.Printf("Client %s get request failed: %s", connection.Target(), err)
+		Redial()
+		return Get(getRsqt)
+	}
 
+	if reflect.ValueOf(result.Value).Kind() != reflect.ValueOf(int32(5)).Kind() {
+		return 0
+	}
+	return result.Value
+}
+
+//In the case of losing connection - alternates between predefined front-
+func Redial() {
+	var port string
+	if connection.Target()[len(connection.Target())-1:] == "1" {
+		port =  ":4000"
+	} else {
+		port = ":4001"
+	}
+
+	conn, err := grpc.Dial(port, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("Client: Unable to connect to port %s: %v", port, err)
+	}
+
+	connection = conn
+	server = hashtable.NewHashTableClient(connection) //creates a connection with an FE server
 }
 
 

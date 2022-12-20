@@ -5,9 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
-	// "strconv"
-	"fmt"
-
+	"strconv"
 	hashtable "github.com/ingridkarinaf/DistributedHashTable/interface"
 	grpc "google.golang.org/grpc"
 )
@@ -22,11 +20,10 @@ Dials to pre-defined replica manager servers, i.e. 5000, 5001 and 5002
 */
 
 type FEServer struct {
-	hashtable.UnimplementedHashTableServer        // You need this line if you have are(?) a server
-	port                    string // Not required but useful if your server needs to know what port it's listening to
-	primaryServer           hashtable.HashTableClient
+	hashtable.UnimplementedHashTableServer
+	port                    string 
 	ctx                     context.Context
-	replicaManagers 		map[int32]hashtable.HashTableClient
+	replicaManagers 		map[string]hashtable.HashTableClient
 }
 
 var serverToDial int
@@ -35,8 +32,7 @@ func main() {
 	f := setLogFEServer()
 	defer f.Close()
 
-	//Creating front-end server
-	port := os.Args[1] //Port for the FEServer to listen on
+	port := os.Args[1] 
 	address := ":" + port
 	list, err := net.Listen("tcp", address)
 	if err != nil {
@@ -49,51 +45,95 @@ func main() {
 	defer cancel()
 	server := &FEServer{
 		port:          os.Args[1],
-		primaryServer: nil,
 		ctx:           ctx,
+		replicaManagers: make(map[string]hashtable.HashTableClient),
 	}
 	hashtable.RegisterHashTableServer(grpcServer, server) 
-	fmt.Printf("FEServer %s: Server on port %s: Listening at %v\n", server.port, port, list.Addr())
+	log.Printf("FEServer %s: Server on port %s: Listening at %v\n", server.port, port, list.Addr())
 
 	
 	go func() {
-		log.Printf("FEServer _attempting_ listening on port %s:", server.port)
+		log.Printf("FEServer _attempting_ to listen on port %s \n", server.port)
 		if err := grpcServer.Serve(list); err != nil {
-			log.Fatalf("failed to serve %v", err)
+			log.Fatalf("Failed to serve on port %s: %v", server.port, err)
 		}
 
 		log.Printf("FEServer %s successfully listening for requests.", server.port)
 	}()
 
+	//Dialing to ports 5000, 5001 and 5002
 	for i := 0; i < 3; i++ {
 		port := 5000 + i 
-		address := ":" + port
-		conn := server.DialToServer(serverToDial)
+		address := ":" + strconv.Itoa(port)
+		conn := server.DialToServer(address)
 		defer conn.Close()
-
 	}
 
 	for {}
-
 }
 
-func (FE *FEServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*hashTable.PutResponse, error){
-	fmt.Println("Inside of put method of FE server: ", FE)
-
-	//Loop through list of servers 
-	for RM in FE.replicaManagers {
-		fmt.Println("RM: ", RM)
+func (FE *FEServer) DialToServer(port string) (*grpc.ClientConn) {
+	log.Printf("FE server %v: Trying to dial RM server with port: %v\n", FE.port, port)
+	conn, err := grpc.Dial(port, grpc.WithInsecure(), grpc.WithBlock()) //This is going to wait until it receives the connection
+	if err != nil { //Reconsider error handling
+		log.Fatalf("FEServer %s could not connect to RM server with port: %s", FE.port, port, err)
 	}
+	
+	c := hashtable.NewHashTableClient(conn)
+	FE.replicaManagers[port] = c
+	return conn
+}
+
+//Waits only for two success responses, chucks out the last one (for performance, only a bonus if the last one is successful)
+func (FE *FEServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*hashtable.PutResponse, error){
+
+	resultChannel := make(chan bool, 2)
+	for port, RMconnection := range FE.replicaManagers  {
+		
+		go func(rmPort string, connection hashtable.HashTableClient) {
+			_, err := connection.Put(context.Background(), hashUpt) //does context.background make it async?
+			if err != nil {
+				log.Printf("FE Server: Hash table to RM server update failed for FE server %s: %s", rmPort, FE.port, err) //identify which replica server?
+			} else {
+				resultChannel <- true
+			}
+		}(port, RMconnection)
+	}
+	
+	// Should wait until received two values
+	<-resultChannel
+	<-resultChannel 
 
 	hashtableUpdateOutcome := &hashtable.PutResponse{
-		Success: false
+		Success: true,
 	}
-
-	var err error 
-	return hashtableUpdateOutcome, err
+	return hashtableUpdateOutcome, nil
 }
 
-// sets the logger to use a log.txt file instead of the console
+func (FE *FEServer) Get(ctx context.Context, getRsqt *hashtable.GetRequest) (*hashtable.GetResponse, error) {
+	responseChannel := make(chan *hashtable.GetResponse, 2)
+	for port, RMconnection := range FE.replicaManagers  {
+		go func(rmPort string, connection hashtable.HashTableClient) {
+			result, err := connection.Get(context.Background(), getRsqt) 
+			if err != nil {
+				log.Printf("Hash table update to RM server %s failed in FE server %s: %s", rmPort, FE.port, err)
+				delete(FE.replicaManagers, rmPort)
+			} else {
+				responseChannel <- result
+			}
+		}(port, RMconnection)
+	}
+
+	resp1 := <-responseChannel
+	resp2 :=  <-responseChannel
+
+	if resp1.Value != resp2.Value {
+		resp3 := <-responseChannel
+		return resp3, nil
+	}
+	return resp1, nil
+}
+
 func setLogFEServer() *os.File {
 	f, err := os.OpenFile("log.txt", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
