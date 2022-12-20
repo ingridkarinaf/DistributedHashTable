@@ -41,16 +41,14 @@ func main() {
 
 	list, err := net.Listen("tcp", fmt.Sprintf(":%v", portInput))
 	if err != nil {
-		fmt.Printf("Failed to listen on port: %v", err)
-		//log.Fatalf("Failed to listen on port: %v", err)
+		log.Fatalf("RM Server %v: Failed to listen on port: %v", rmServer.id, err)
 	}
 
 	grpcServer := grpc.NewServer()
 	hashtable.RegisterHashTableServer(grpcServer, rmServer)
 	go func() {
 		if err := grpcServer.Serve(list); err != nil {
-			fmt.Printf("failed to server %v", err)
-			//log.Fatalf("failed to server %v", err)
+			log.Fatalf("RM server %v failed to serve %v", rmServer.id, err)
 		}
 	}()
 

@@ -8,9 +8,9 @@ import (
 	"log"
 	"os"
 	"bufio"
-	"fmt"
 	"context"
 	"reflect"
+	"fmt"
 )
 
 /* 
@@ -58,13 +58,13 @@ func main() {
 				
 				key, err := strconv.Atoi(inputArray[0])
 				if err != nil {
-					fmt.Println("Couldn't convert key to int: ", err)
-					//log.Fatalf("Couldn't convert key to int: ", err)
+					log.Printf("Couldn't convert key to int: ", err)
+					continue
 				}
 				value, err := strconv.Atoi(inputArray[1])
 				if err != nil {
-					fmt.Println("Couldn't convert key to int: ", err)
-					//log.Fatalf("Couldn't convert value to int: ", err)
+					log.Printf("Couldn't convert key to int: ", err)
+					continue
 				}
 	
 				hashtableUpdate := &hashtable.PutRequest{
@@ -74,9 +74,9 @@ func main() {
 
 				result := Put(hashtableUpdate)
 				if result.Success == true {
-					fmt.Printf("Hashtable successfully updated to %v for key %v.\n", key, value)
+					log.Printf("Hashtable successfully updated to %v for key %v.\n", key, value)
 				} else {
-					fmt.Println("Update unsuccessful, please try again.")
+					log.Println("Update unsuccessful, please try again.")
 				}
 				
 			} else if (textChoice == "get") {
@@ -85,16 +85,18 @@ func main() {
 				text := scanner.Text()
 				key, err := strconv.Atoi(text)
 				if err != nil {
-					fmt.Println("Could not convert key to integer: ", err)
-					//log.Fatalf("Could not convert key to integer: ", err)
+					log.Println("Client: Could not convert key to integer: ", err)
+					continue
 				}
 				getReq := &hashtable.GetRequest{
 					Key:   int32(key),
 				}
 
-				result := Get(getReq) //result := Get(getReq, connection, server)
+				result := Get(getReq) 
+				log.Printf("Client: Value of key %s: %v \n",text, int(result))
 				fmt.Printf("Value of key %s: %v \n",text, int(result))
 			} else {
+				log.Println("Sorry, didn't catch that. ")
 				fmt.Println("Sorry, didn't catch that. ")
 			}
 		}
@@ -107,7 +109,7 @@ func main() {
 func Put(hashUpt *hashtable.PutRequest) (*hashtable.PutResponse) {
 	result, err := server.Put(context.Background(), hashUpt) //What does the context.background do?
 	if err != nil {
-		fmt.Printf("Client %s hashUpdate failed:%s. \n Redialing and retrying. \n", connection.Target(), err)
+		log.Printf("Client %s hashUpdate failed:%s. \n Redialing and retrying. \n", connection.Target(), err)
 		Redial()
 		return Put(hashUpt)
 	}
@@ -117,7 +119,7 @@ func Put(hashUpt *hashtable.PutRequest) (*hashtable.PutResponse) {
 func Get(getRsqt *hashtable.GetRequest) (int32) {
 	result, err := server.Get(context.Background(), getRsqt)
 	if err != nil {
-		fmt.Printf("Client %s get request failed: %s", connection.Target(), err)
+		log.Printf("Client %s get request failed: %s", connection.Target(), err)
 		Redial()
 		return Get(getRsqt)
 	}
@@ -139,7 +141,7 @@ func Redial() {
 
 	conn, err := grpc.Dial(port, grpc.WithInsecure())
 	if err != nil {
-		fmt.Println("Unable to connect to port %s: %v", port, err)
+		log.Fatalf("Client: Unable to connect to port %s: %v", port, err)
 	}
 
 	connection = conn
