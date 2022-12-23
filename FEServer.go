@@ -86,14 +86,16 @@ func (FE *FEServer) DialToServer(port string) (*grpc.ClientConn) {
 
 //Waits only for two success responses, chucks out the last one (for performance, only a bonus if the last one is successful)
 func (FE *FEServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*hashtable.PutResponse, error){
-
+	
 	resultChannel := make(chan bool, 2)
 	for port, RMconnection := range FE.replicaManagers  {
 		
+		//Sending update request to all replica managers simultaneously
 		go func(rmPort string, connection hashtable.HashTableClient) {
 			_, err := connection.Put(context.Background(), hashUpt) //does context.background make it async?
 			if err != nil {
 				log.Printf("FE Server: Hash table to RM server update failed for FE server %s: %s", rmPort, FE.port, err) //identify which replica server?
+				delete(FE.replicaManagers, rmPort)
 			} else {
 				resultChannel <- true
 			}

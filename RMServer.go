@@ -9,7 +9,7 @@ import (
 	"context"
 	"net"
 	"log"
-
+	"time"
 )
 
 /*
@@ -22,7 +22,10 @@ type RMServer struct {
 	id              int32 //portnumber, between 5000 and 5002
 	ctx             context.Context
 	hashTableCopy   map[int32]int32
+	lockChannel 	chan bool
 }
+
+
 
 func main() {
 	//log to file instead of console
@@ -37,7 +40,11 @@ func main() {
 		id:              int32(portInput),
 		hashTableCopy:   make(map[int32]int32),
 		ctx:             ctx,
+		lockChannel: 	make(chan bool, 1),
 	}
+
+	//Unlock channel
+	rmServer.lockChannel <- true
 
 	list, err := net.Listen("tcp", fmt.Sprintf(":%v", portInput))
 	if err != nil {
@@ -56,10 +63,13 @@ func main() {
 }
 
 func (RM *RMServer) Put(ctx context.Context, hashUpt *hashtable.PutRequest) (*hashtable.PutResponse, error){
+	<- RM.lockChannel 
+	time.Sleep(5 * time.Second)
 	RM.hashTableCopy[hashUpt.Key] = hashUpt.Value
 	hashtableUpdateOutcome := &hashtable.PutResponse{
 		Success: true,
 	}
+	RM.lockChannel <- true
 	return hashtableUpdateOutcome, nil
 }
 
